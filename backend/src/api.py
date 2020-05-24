@@ -4,6 +4,7 @@ from sqlalchemy import exc
 import json
 from flask_cors import CORS
 
+
 from database.models import db_drop_and_create_all, setup_db, Drink
 from auth.auth import AuthError, requires_auth
 
@@ -16,7 +17,7 @@ CORS(app)
 # !! NOTE THIS WILL DROP ALL RECORDS AND START YOUR DB FROM SCRATCH
 # !! NOTE THIS MUST BE UNCOMMENTED ON FIRST RUN
 # '''
-#db_drop_and_create_all()
+db_drop_and_create_all()
 
 ## ROUTES
 '''
@@ -97,9 +98,8 @@ def create_drink(payload):
 '''
 @app.route('/drinks/<id>', methods= ['PATCH'])
 @requires_auth('patch:drinks')
-def update_drink(payload):
-    #obtain info as json object and targeted drink to update
-    body = request.json()
+def update_drink(payload, id):
+    #obtain targeted drink to update
     drink = Drink.query.filter(Drink.id==id).one_or_none()
 
     #abort if no results found
@@ -108,8 +108,15 @@ def update_drink(payload):
 
     #set new information and update record of target drink
     else:
-        drink.title = body.get('title')
-        drink.recipe = json.dumps(body.get('recipe'))
+        body = request.get_json()
+        if not body.get('title'):
+            drink.title = drink.title
+        else:
+            drink.title = body.get('title')
+        if not body.get('recipe'):
+            drink.recipe=drink.recipe
+        else:
+            drink.recipe = json.dumps(body.get('recipe'))
         drink.insert()
 
     return jsonify({
@@ -129,9 +136,8 @@ def update_drink(payload):
 '''
 @app.route('/drinks/<id>', methods= ['DELETE'])
 @requires_auth('delete:drinks')
-def delete_drink(payload):
-    #obtain info as json object and targeted drink to update
-    body = request.json()
+def delete_drink(payload, id):
+    #obtain info targeted drink to update
     drink = Drink.query.filter(Drink.id==id).one_or_none()
 
     #abort if no results found
@@ -190,10 +196,10 @@ def unprocessable(error):
 '''
 @app.errorhandler(AuthError)
 def auth_error_message(error):
-    print (AuthError)
+    message = str(error)
     return jsonify({
                     "success": False,
-                    "description":"Authorization Error"
+                    "description": message
                     })
 
 if __name__=='__main__':
