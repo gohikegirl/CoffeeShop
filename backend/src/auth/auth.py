@@ -31,33 +31,36 @@ class AuthError(Exception):
 #     return the token part of the header
 # '''
 def get_token_auth_header():
+    #Obtain headers from token
     auth = request.headers.get('Authorization', None)
 
+    #Check if authorization header exists
     if not auth:
         raise AuthError({
         'code': 'authorization_header_missing',
         'description': 'Authorization header is expected'
         }, 401)
 
+    #If header exists, check that first part contains bearer
     parts = auth.split()
     if parts[0].lower() != 'bearer':
         raise AuthError({
         'code': 'invalid_header',
         'description': 'Authorization header must start with "Bearer"'
         }, 401)
-
+    #Check if any part of the header is missing
     elif len(parts)==1:
         raise AuthError({
         'code': 'invalid_header',
         'description': 'Token not found'
         }, 401)
-
+    #check if header has too many parts
     elif len(parts)>2:
         raise AuthError({
         'code': 'invalid_header',
         'description': 'Authorization header must be bearer token'
         }, 401)
-
+    #return token portion of header if all other checks pass
     token = parts[1]
     return token
 
@@ -75,16 +78,18 @@ def get_token_auth_header():
 #     return true otherwise
 # '''
 def check_permissions(permission, payload):
+    #check that payload contains info on permissions
     if 'permissions' not in payload:
         raise AuthError({
         'code': 'invalid_claims',
         'description': 'Permissions not found in JWT'
         }, 400)
+    #check if specific permission required for method is in payload
     if permission not in payload['permissions']:
         raise AuthError({
         'code': 'unauthorized',
         'description': 'Permission not found'
-        })
+        }, 401)
     return True
     raise Exception('Not Implemented')
 
@@ -102,16 +107,19 @@ def check_permissions(permission, payload):
 #     !!NOTE urlopen has a common certificate error described here: https://stackoverflow.com/questions/50236117/scraping-ssl-certificate-verify-failed-error-for-http-en-wikipedia-org
 # '''
 def verify_decode_jwt(token):
+    #open autho0 domain and download info on verified tokens
     jsonurl = urlopen(f'https://{AUTH0_DOMAIN}/.well-known/jwks.json')
     jwks = json.loads(jsonurl.read())
+    #extract header from token
     unverified_header = jwt.get_unverified_header(token)
     rsa_key={}
+    #check header has KID
     if 'kid' not in unverified_header:
         raise AuthError({
         'code': 'invalid_header',
         'description': 'Authorization malformed'
         }, 401)
-
+    #check header's KID against keys of verified tokens and if so grab other associated fields
     for key in jwks['keys']:
         if key['kid'] == unverified_header['kid']:
             rsa_key = {
@@ -122,6 +130,7 @@ def verify_decode_jwt(token):
             'e': key['e']
             }
     if rsa_key:
+        #decode header with rsa key obtained in last step
         try:
             payload = jwt.decode(
             token,
@@ -131,7 +140,7 @@ def verify_decode_jwt(token):
             issuer = 'https://'+ AUTH0_DOMAIN + '/'
             )
             return payload
-
+        #specific errors to raise if token has issues
         except jwt.ExpiredSignatureError:
             raise AuthError({
                 'code': 'token_expired',
@@ -150,7 +159,7 @@ def verify_decode_jwt(token):
                 'description': 'Unable to parse authentication token.'
             }, 400)
 
-    raise Exception('Not Implemented')
+    #raise Exception('Not Implemented')
 
 '''
 @TODO implement @requires_auth(permission) decorator method

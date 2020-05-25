@@ -17,7 +17,7 @@ CORS(app)
 # !! NOTE THIS WILL DROP ALL RECORDS AND START YOUR DB FROM SCRATCH
 # !! NOTE THIS MUST BE UNCOMMENTED ON FIRST RUN
 # '''
-db_drop_and_create_all()
+#db_drop_and_create_all()
 
 ## ROUTES
 '''
@@ -66,7 +66,7 @@ def get_drinks_detail(payload):
     returns status code 200 and json {"success": True, "drinks": drink} where drink an array containing only the newly created drink
         or appropriate status code indicating reason for failure
 '''
-@app.route('/drinks/create', methods= ['POST'])
+@app.route('/drinks', methods= ['POST'])
 @requires_auth('post:drinks')
 def create_drink(payload):
     #obtain info as json object
@@ -109,6 +109,7 @@ def update_drink(payload, id):
     #set new information and update record of target drink
     else:
         body = request.get_json()
+        print(body)
         if not body.get('title'):
             drink.title = drink.title
         else:
@@ -190,6 +191,22 @@ def unprocessable(error):
                     "message": "resource missing"
                     }), 404
 
+@app.errorhandler(400)
+def unprocessable(error):
+    return jsonify({
+                    "success": False,
+                    "error": 400,
+                    "message": "bad request"
+                    }), 400
+
+@app.errorhandler(500)
+def unprocessable(error):
+    return jsonify({
+                    "success": False,
+                    "error": 500,
+                    "message": "internal server error"
+                    }), 500
+
 '''
 @TODO implement error handler for AuthError
     error handler should conform to general task above
@@ -199,8 +216,9 @@ def auth_error_message(error):
     message = str(error)
     return jsonify({
                     "success": False,
+                    "error": error.status_code,
                     "description": message
-                    })
+                    }), 401
 
 if __name__=='__main__':
     app.run(debug=True)
